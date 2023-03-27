@@ -8,6 +8,11 @@ HostInfo::HostInfo()
     this->isAlive = false;
 }
 
+HostInfo::HostInfo(QString ip)
+{
+    this->ip = ip;
+}
+
 QString HostInfo::getIp()
 {
     return this->ip;

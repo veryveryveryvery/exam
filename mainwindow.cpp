@@ -253,7 +253,7 @@ void MainWindow::scanner()
     Scan* scan = new Scan(this);
     scan->setAttribute(Qt::WA_DeleteOnClose);
     scan->setWindowTitle("主机扫描");
-    scan->setWindowOpacity(0.9);
+    scan->setWindowOpacity(1);
     scan->show();
 }
 

@@ -1,5 +1,4 @@
 #include "hostscanner.h"
-
 #include <QProcess>
 
 HostScanner::HostScanner(QObject *parent)
@@ -8,10 +7,9 @@ HostScanner::HostScanner(QObject *parent)
 
 }
 
-void HostScanner::scanHost(const QString ip)
+void HostScanner::setSubnet(const QString subnet)
 {
-    //主机：10.13.156.88
-    QString ipAddr = "192.168.31.30";
+    this->subnet = subnet;
 //    int startPort = 1;
 //    int endPort = 254;
 //    for(int i=startPort; i<=endPort;i++)
@@ -26,31 +24,26 @@ void HostScanner::scanHost(const QString ip)
 //        else
 //            qDebug()<< "IP地址:" + currentIp << "端口号8080不可用";
 //    }
+}
 
-        QString host =  ipAddr + " -c 1";   //可以扫描主机
+void HostScanner::run()
+{
+    for(int i=1; i<255; i++)//可以扫描主机
+    {
         QString cmd = "ping";
         QProcess process;
-
-        process.start(cmd,{host},QIODeviceBase::ReadWrite);
-        process.waitForFinished(500);
+        QString ipAddr = subnet + QString::number(i);
+        process.start(cmd,{ipAddr},QIODeviceBase::ReadWrite);
+        process.waitForFinished(300);
 //        qDebug()<< process.errorString();
         QString output = QString::fromLocal8Bit(process.readAllStandardOutput());
         if (output.contains("ttl=")) {
-            qDebug() << "Host" << ipAddr << "is online.";
+            qDebug() << "ip:" << ipAddr << "is online.";
+            emit send(HostInfo(ipAddr));
         } else {
-            qDebug() << "Host" << ipAddr << "is offline.";
-            qDebug()<< output.data()->unicode();
+//            qDebug() << "ip:" << ipAddr << "is offline.";
         }
+        process.close();
+    }
 }
 
-void HostScanner::lookup(QHostInfo info)
-{
-    if(info.error() == QHostInfo::NoError)
-    {
-        qDebug()<< info.hostName() + " 占用" +info.errorString() + info.localHostName();
-    }
-    else
-    {
-        qDebug()<< info.hostName() + " 没有占用";
-    }
-}

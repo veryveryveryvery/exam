@@ -14,7 +14,6 @@
 #include "icmp.h"
 #include "dns.h"
 
-
 QT_BEGIN_NAMESPACE
 namespace Ui { class MainWindow; }
 QT_END_NAMESPACE
@@ -49,8 +48,6 @@ public:
     void DNS_analysis();
     void ICMP_analysis();
 
-
-
 private slots:
     void on_comboBox_currentIndexChanged(int index);
     void on_tableWidget_cellClicked(int row, int column);
@@ -69,6 +66,7 @@ private:
     QVector<DataPackage> data;
     int countNumber;      //数据包的个数
     int current_row;      //记录选中的第几行的数据包
+
     DataPackage* pkt_arp;
     DataPackage* pkt_ip;
     DataPackage* pkt_tcp;

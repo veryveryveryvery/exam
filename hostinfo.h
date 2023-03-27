@@ -6,6 +6,7 @@ class HostInfo
 {
 public:
     HostInfo();
+    HostInfo(QString ip);
 
     //get
     QString getIp();

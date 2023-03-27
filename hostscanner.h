@@ -4,23 +4,24 @@
 #include <QThread>
 #include <QTcpSocket>
 #include <QDebug>
-#include <QHostInfo>
+#include <QVector>
+#include "hostinfo.h"
 
 class HostScanner : public QThread
 {
     Q_OBJECT
 public:
     explicit HostScanner(QObject *parent = nullptr);
-//    QHostInfo info;
+    QString subnet = "";
+    QVector<HostInfo> ip_list;
 
-    void scanHost(const QString ip);
+    void setSubnet(const QString ip);
 
-
-protected slots:
-    void lookup(QHostInfo info);
-
+protected:
+    void run() override;
 signals:
-    void hostIsUp(const QString ip);
+    void send(HostInfo);
+
 
 };
 

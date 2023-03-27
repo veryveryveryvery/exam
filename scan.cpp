@@ -7,21 +7,52 @@ Scan::Scan(QWidget *parent) :
 {
     ui->setupUi(this);
 
+    HostScanner* search_ip = new HostScanner;
+    this->countNumber = 0;
+
+    ui->lineEdit->setInputMask("009.099.099.; ");
+    ui->tableWidget->verticalHeader()->setVisible(false);
+    ui->tableWidget->setColumnCount(3);
+    QStringList title = {"Number","IP","Port"};
+    ui->tableWidget->setHorizontalHeaderLabels(title);
+    ui->tableWidget->verticalHeader()->setDefaultSectionSize(30);
+    ui->tableWidget->setColumnWidth(0,50);
+    ui->tableWidget->setColumnWidth(1,120);
+    ui->tableWidget->setColumnWidth(2,550);
+    ui->tableWidget->setEditTriggers(QAbstractItemView::NoEditTriggers);
+
+
+    connect(ui->pushButton, &QPushButton::clicked, this, [=](){
+        this->ip_list.clear();
+        this->countNumber = 0;
+
+        QString subnet = ui->lineEdit->text();
+        qDebug()<<subnet;
+        search_ip->setSubnet(subnet);
+        search_ip->start();
+    });
+
+    connect(search_ip, &HostScanner::send, this, [=](HostInfo ip){
+        this->ip_list.append(ip);
+        showHostinfo(ip);
+    });
+
+
 }
 Scan::~Scan()
 {
     delete ui;
 }
 
-void Scan::scanner()
+void Scan::showHostinfo(HostInfo ip)
 {
-    HostScanner* searchIp = new HostScanner;
-    searchIp->scanHost("");
+    qDebug()<< ip.getIp();
+    ui->tableWidget->insertRow(countNumber);
+    ui->tableWidget->setItem(countNumber, 0, new QTableWidgetItem(QString::number(countNumber + 1)));
+    ui->tableWidget->setItem(countNumber, 1, new QTableWidgetItem(ip.getIp()));
+//    ui->tableWidget->setItem(countNumber, 2, new QTableWidgetItem(ip.getPorts().at(0)));
+    countNumber++;
 }
 
 
-void Scan::on_pushButton_clicked()
-{
-    scanner();
-}
 
