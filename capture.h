@@ -26,7 +26,7 @@ public:
 
     int ipPackageHandle(const uchar *pkt_content,int& ipPackage);
     QString arpPackageHandle(const uchar *pkt_content);
-    QString icmpPackageHandle(const u_char *pkt_content);
+    QString icmpPackageHandle(const uchar *pkt_content);
     int tcpPackageHandle(const uchar *pkt_content, QString& info, int ipPackage);
     int udpPackageHandle(const uchar *pkt_content, QString& info);
     QString dnsPackageHandle(const uchar *pkt_content);

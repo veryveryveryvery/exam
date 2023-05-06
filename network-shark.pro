@@ -21,6 +21,7 @@ SOURCES += \
     mainwindow.cpp \
     scan.cpp \
     tcp.cpp \
+    tls.cpp \
     udp.cpp
 
 HEADERS += \
@@ -36,6 +37,7 @@ HEADERS += \
     mainwindow.h \
     scan.h \
     tcp.h \
+    tls.h \
     udp.h
 
 FORMS += \
@@ -43,6 +45,7 @@ FORMS += \
     scan.ui
 
 LIBS += -lpcap
+
 
 # Default rules for deployment.
 qnx: target.path = /tmp/$${TARGET}/bin

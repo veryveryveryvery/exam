@@ -15,7 +15,7 @@ public:
     virtual QString getDnsFlagsAA();                  // get dns flag AA
     virtual QString getDnsFlagsTC();                  // get dns flag TC
     virtual QString getDnsFlagsRD();                  // get dns flag RD
-    virtual QString getDnsFlagsRA();                  // get dns flag RA
+    virtual QString getDnsFlagsRA();                  // get dns flag RApublic DataPackage
     virtual QString getDnsFlagsZ();                   // get dns flag Z [reserved]
     virtual QString getDnsFlagsRcode();               // get dns flag Rcode
     virtual QString getDnsQuestionNumber();           // get dns question number

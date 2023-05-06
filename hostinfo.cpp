@@ -8,9 +8,10 @@ HostInfo::HostInfo()
     this->isAlive = false;
 }
 
-HostInfo::HostInfo(QString ip)
+HostInfo::HostInfo(QString ip, QVector<int> port_list)
 {
     this->ip = ip;
+    this->ports = port_list;
 }
 
 QString HostInfo::getIp()
@@ -18,9 +19,14 @@ QString HostInfo::getIp()
     return this->ip;
 }
 
-QVector<int> HostInfo::getPorts()
+QString HostInfo::getPorts()
 {
-    return this->ports;
+    QString str = "";
+    for(auto &x : ports)
+    {
+        str += QString::number(x) + " ";
+    }
+    return str;
 }
 
 QString HostInfo::getOS()

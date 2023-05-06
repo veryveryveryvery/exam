@@ -23,8 +23,11 @@ Scan::Scan(QWidget *parent) :
 
 
     connect(ui->pushButton, &QPushButton::clicked, this, [=](){
+        this->ui->tableWidget->clearContents();
+        this->ui->tableWidget->setRowCount(0);
         this->ip_list.clear();
         this->countNumber = 0;
+        search_ip->terminate();
 
         QString subnet = ui->lineEdit->text();
         qDebug()<<subnet;
@@ -50,7 +53,7 @@ void Scan::showHostinfo(HostInfo ip)
     ui->tableWidget->insertRow(countNumber);
     ui->tableWidget->setItem(countNumber, 0, new QTableWidgetItem(QString::number(countNumber + 1)));
     ui->tableWidget->setItem(countNumber, 1, new QTableWidgetItem(ip.getIp()));
-//    ui->tableWidget->setItem(countNumber, 2, new QTableWidgetItem(ip.getPorts().at(0)));
+    ui->tableWidget->setItem(countNumber, 2, new QTableWidgetItem(ip.getPorts()));
     countNumber++;
 }
 

@@ -6,11 +6,11 @@ class HostInfo
 {
 public:
     HostInfo();
-    HostInfo(QString ip);
+    HostInfo(QString ip, QVector<int>);
 
     //get
     QString getIp();
-    QVector<int> getPorts();
+    QString getPorts();
     QString getOS();
     bool getIsAlive();
 

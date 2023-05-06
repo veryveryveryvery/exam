@@ -10,20 +10,22 @@ HostScanner::HostScanner(QObject *parent)
 void HostScanner::setSubnet(const QString subnet)
 {
     this->subnet = subnet;
-//    int startPort = 1;
-//    int endPort = 254;
-//    for(int i=startPort; i<=endPort;i++)
-//    {
-//        QString currentIp = ipAddr + QString::number(i);
-//        QTcpSocket tcpSocket;
-//        tcpSocket.connectToHost(currentIp, 8080);    //此方式扫描端口可行
-//        if(tcpSocket.waitForConnected(100))
-//        {
-//            qDebug()<< "IP地址:" + currentIp << "端口号8080可用";
-//        }
-//        else
-//            qDebug()<< "IP地址:" + currentIp << "端口号8080不可用";
-//    }
+}
+
+QVector<int> HostScanner::portScan(QString ip)
+{
+    QVector<int> port_list;
+    for(auto &x : ports)
+    {
+        QTcpSocket tcpSocket;
+        tcpSocket.connectToHost(ip, x);
+        if(tcpSocket.waitForConnected(100))
+        {
+            port_list.append(x);
+        }
+
+    }
+    return port_list;
 }
 
 void HostScanner::run()
@@ -39,9 +41,8 @@ void HostScanner::run()
         QString output = QString::fromLocal8Bit(process.readAllStandardOutput());
         if (output.contains("ttl=")) {
             qDebug() << "ip:" << ipAddr << "is online.";
-            emit send(HostInfo(ipAddr));
-        } else {
-//            qDebug() << "ip:" << ipAddr << "is offline.";
+            QVector<int> port_list =  portScan(ipAddr);
+            emit send(HostInfo(ipAddr, port_list));
         }
         process.close();
     }

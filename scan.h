@@ -24,7 +24,6 @@ public:
 
     void showHostinfo(HostInfo);
 
-
 private slots:
 
 private:

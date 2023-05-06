@@ -151,7 +151,7 @@ QString DataPackage::getSrcMacAddr(){
 }
 /********************** get ethenet type **********************/
 QString DataPackage::getMacType(){
-    ETHER_HEADER*ethernet;
+    ETHER_HEADER* ethernet;
     ethernet = (ETHER_HEADER*)pkt_content;
     ushort ethernet_type = ntohs(ethernet->ether_type);
     switch (ethernet_type) {
@@ -165,7 +165,7 @@ QString DataPackage::getMacType(){
 /* ip */
 /********************** get destination ip address **********************/
 QString DataPackage::getDesIpAddr(){
-    IP_HEADER*ip;
+    IP_HEADER* ip;
     ip = (IP_HEADER*)(pkt_content + 14);
     sockaddr_in desAddr;
     desAddr.sin_addr.s_addr = ip->des_addr;
@@ -173,7 +173,7 @@ QString DataPackage::getDesIpAddr(){
 }
 /********************** get source ip address **********************/
 QString DataPackage::getSrcIpAddr(){
-    IP_HEADER*ip;
+    IP_HEADER* ip;
     ip = (IP_HEADER*)(pkt_content + 14);
     sockaddr_in srcAddr;
     srcAddr.sin_addr.s_addr = ip->src_addr;

@@ -13,6 +13,7 @@
 #include "udp.h"
 #include "icmp.h"
 #include "dns.h"
+#include "tls.h"
 
 QT_BEGIN_NAMESPACE
 namespace Ui { class MainWindow; }
@@ -42,11 +43,12 @@ public:
     void ARP_analysis();
     void IP_analysis();
     void TCP_analysis();
-    void TLS_analysis();
-    void SSL_analysis();
     void UDP_analysis();
     void DNS_analysis();
     void ICMP_analysis();
+    void TLS_analysis();
+    void SSL_analysis();
+
 
 private slots:
     void on_comboBox_currentIndexChanged(int index);
@@ -73,6 +75,7 @@ private:
     DataPackage* pkt_udp;
     DataPackage* pkt_dns;
     DataPackage* pkt_icmp;
+    DataPackage* pkt_tls;
 
 };
 #endif // MAINWINDOW_H

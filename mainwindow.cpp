@@ -568,7 +568,7 @@ void MainWindow::TCP_analysis()
                 break;
             }
             case 2:{
-                u_short mss;
+                ushort mss;
                 if(pkt_tcp->getTcpOperationMSS(j,mss)){
                     QTreeWidgetItem * subTree = new QTreeWidgetItem(QStringList()<<"TCP Option - Maximun Segment Size: " + QString::number(mss) + " bytes");
                     optionTree->addChild(subTree);
@@ -653,16 +653,6 @@ void MainWindow::TCP_analysis()
     }
     if(dataLengthofIp > 0)
         item4->addChild(new QTreeWidgetItem(QStringList()<<"TCP Payload (" + QString::number(dataLengthofIp) + ")"));
-}
-
-void MainWindow::TLS_analysis()
-{
-
-}
-
-void MainWindow::SSL_analysis()
-{
-
 }
 
 void MainWindow::UDP_analysis()
@@ -775,10 +765,10 @@ void MainWindow::DNS_analysis()
         for(int i = 0;i< answerNumber;i++){
             QString name1;
             QString name2;
-            u_short type;
-            u_short Class;
+            ushort type;
+            ushort Class;
             u_int ttl;
-            u_short length;
+            ushort length;
 
             int tempOffset = pkt_dns->getDnsAnswersDomain(offset,name1,type,Class,ttl,length,name2);
             QString sType = pkt_dns->getDnsDomainType(type);
@@ -826,6 +816,531 @@ void MainWindow::ICMP_analysis()
         QString icmpData = pkt_icmp->getIcmpData(dataLengthofIp);
         dataItem->addChild(new QTreeWidgetItem(QStringList()<<icmpData));
     }
+}
+
+void MainWindow::TLS_analysis()
+{
+    pkt_tls = new Tls(data[current_row]);
+    pkt_tcp = new Tcp(data[current_row]);
+    int rawLength = pkt_tcp->getTcpRawHeaderLength().toUtf8().toInt();
+    QTreeWidgetItem* tlsTree = new QTreeWidgetItem(QStringList()<<"Transport Layer Security");
+    ui->treeWidget->addTopLevelItem(tlsTree);
+    u_char contentType = 0;
+    ushort version = 0;
+    ushort length = 0;
+    pkt_tls->getTlsBasicInfo((rawLength * 4),contentType,version,length);
+    QString type = pkt_tls->getTlsContentType(contentType);
+    QString vs = pkt_tls->getTlsVersion(version);
+    switch (contentType) {
+    case 20:{
+        // ... TODO
+        break;
+    }
+    case 21:{
+        QTreeWidgetItem* tlsSubree = new QTreeWidgetItem(QStringList()<<vs + " Record Layer: Encrypted Alert");
+        tlsTree->addChild(tlsSubree);
+        tlsSubree->addChild(new QTreeWidgetItem(QStringList()<<"Content Type: " + type + " (" + QString::number(contentType) + ")"));
+        tlsSubree->addChild(new QTreeWidgetItem(QStringList()<<"Version: " + vs + " (0x0" + QString::number(version,16) + ")"));
+        tlsSubree->addChild(new QTreeWidgetItem(QStringList()<<"Length " + QString::number(length)));
+        tlsSubree->addChild(new QTreeWidgetItem(QStringList()<<"Alert Message: Encrypted Alert"));
+        break;
+    }
+    case 22:{ // handshake
+        u_char handshakeType = 0;
+        pkt_tls->getTlsHandshakeType((rawLength * 4 + 5),handshakeType);
+        if(handshakeType == 1){ // client hello
+            int tlsLength = 0;
+            ushort rawVersion = 0;
+            QString random = "";
+            u_char sessionLength = 0;
+            QString sessionId = "";
+            ushort cipherLength = 0;
+            QVector<ushort>cipher;
+            u_char cmLength = 0;
+            QVector<u_char>compressionMethod;
+            ushort extensionLength = 0;
+            pkt_tls->getTlsClientHelloInfo((rawLength * 4 + 5),handshakeType,tlsLength,rawVersion,random,sessionLength,sessionId,cipherLength,cipher,cmLength,compressionMethod,extensionLength);
+
+            QString type = pkt_tls->getTlsHandshakeType(handshakeType);
+            QString tlsVersion = pkt_tls->getTlsVersion(rawVersion);
+
+            QTreeWidgetItem* tlsSubTree = new QTreeWidgetItem(QStringList()<<vs + " Record Layer: " + type + " Protocol: " + type);
+            tlsTree->addChild(tlsSubTree);
+            tlsSubTree->addChild(new QTreeWidgetItem(QStringList()<<"Content Type: " + type + " (" + QString::number(contentType) + ")"));
+            tlsSubTree->addChild(new QTreeWidgetItem(QStringList()<<"Version: " + vs + " (0x0" + QString::number(version,16) + ")"));
+            tlsSubTree->addChild(new QTreeWidgetItem(QStringList()<<"Length " + QString::number(length)));
+
+            QTreeWidgetItem* handshakeTree = new QTreeWidgetItem(QStringList()<<"Handshake Protocol: " + type);
+            tlsSubTree->addChild(handshakeTree);
+            handshakeTree->addChild(new QTreeWidgetItem(QStringList()<<"Handshake Type: " + type + "(" + QString::number(handshakeType) + ")"));
+            handshakeTree->addChild(new QTreeWidgetItem(QStringList()<<"Length: " + QString::number(tlsLength)));
+
+            handshakeTree->addChild(new QTreeWidgetItem(QStringList()<<"Version: " + tlsVersion + " (0x0" + QString::number(rawVersion) + ")"));
+            handshakeTree->addChild(new QTreeWidgetItem(QStringList()<<"Random: " + random));
+            handshakeTree->addChild(new QTreeWidgetItem(QStringList()<<"Session ID Length: " + QString::number(sessionLength)));
+            if(sessionLength > 0){
+                handshakeTree->addChild(new QTreeWidgetItem(QStringList()<<"Session ID: " + sessionId));
+            }
+            handshakeTree->addChild(new QTreeWidgetItem(QStringList()<<"Cipher Suites Length: " + QString::number(cipherLength)));
+            if(cipherLength > 0){
+                QTreeWidgetItem* cipherTree = new QTreeWidgetItem(QStringList()<<"Cipher Suites (" + QString::number(cipherLength/2) + " suites)");
+                handshakeTree->addChild(cipherTree);
+                for(int k = 0;k < cipherLength/2;k++){
+                    QString temp = pkt_tls->getTlsHandshakeCipherSuites(cipher[k]);
+                    cipherTree->addChild(new QTreeWidgetItem(QStringList()<<"Cipher Suite: " + temp));
+                }
+            }
+            handshakeTree->addChild(new QTreeWidgetItem(QStringList()<<"Compression Method Length: " + QString::number(cmLength)));
+            if(cmLength > 0){
+                QTreeWidgetItem* cmTree = new QTreeWidgetItem(QStringList()<<"Compression Methods (" + QString::number(cmLength) + " method)");
+                handshakeTree->addChild(cmTree);
+                for(int k = 0;k < cmLength;k++){
+                    QString temp = pkt_tls->getTlsHandshakeCompression(compressionMethod[k]);
+                    cmTree->addChild(new QTreeWidgetItem(QStringList()<<"Compression Methods: " + temp + " (" + QString::number(compressionMethod[k]) + ")"));
+                }
+            }
+            handshakeTree->addChild(new QTreeWidgetItem(QStringList()<<"Extensions Length: " + QString::number(extensionLength)));
+            if(extensionLength > 0){
+                int exOffset = (rawLength * 4) + (tlsLength - extensionLength + 5 + 4);
+                for(int k = 0;k < extensionLength;){
+                    int code = pkt_tls->getTlsExtensionType(exOffset);
+                    ushort exType = 0;
+                    ushort exLength = 0;
+                    switch (code) {
+                    case 0:{ // server_name
+                        ushort listLength = 0;
+                        u_char nameType = 0;
+                        ushort nameLength = 0;
+                        QString name = "";
+                        pkt_tls->getTlsExtensionServerName(exOffset,exType,exLength,listLength,nameType,nameLength,name);
+                        QString subType = pkt_tls->getTlsHandshakeExtension(exType);
+                        QTreeWidgetItem*extensionTree = new QTreeWidgetItem(QStringList()<<"Extension: " + subType + " (len=" + QString::number(exLength) + ")");
+                        handshakeTree->addChild(extensionTree);
+                        extensionTree->addChild(new QTreeWidgetItem(QStringList()<<"Type: " + subType));
+                        extensionTree->addChild(new QTreeWidgetItem(QStringList()<<"Length: " + QString::number(exLength)));
+                        if(exLength > 0 && listLength > 0){
+                            QTreeWidgetItem*serverTree = new QTreeWidgetItem(QStringList()<<"Server Name Indication extension");
+                            extensionTree->addChild(serverTree);
+                            serverTree->addChild(new QTreeWidgetItem(QStringList()<<"Server Name list length: " + QString::number(listLength)));
+                            serverTree->addChild(new QTreeWidgetItem(QStringList()<<"Server Name Type: " + QString::number(nameType)));
+                            serverTree->addChild(new QTreeWidgetItem(QStringList()<<"Server Name length: " + QString::number(nameLength)));
+                            serverTree->addChild(new QTreeWidgetItem(QStringList()<<"Server Name: " + name));
+                        }
+                        break;
+                    }
+                    case 11:{// ec_point_format
+                        u_char ecLength = 0;
+                        QVector<u_char>EC;
+                        pkt_tls->getTlsExtensionEcPointFormats(exOffset,exType,exLength,ecLength,EC);
+                        QString subType = pkt_tls->getTlsHandshakeExtension(exType);
+                        QTreeWidgetItem*extensionTree = new QTreeWidgetItem(QStringList()<<"Extension: " + subType + " (len=" + QString::number(exLength) + ")");
+                        handshakeTree->addChild(extensionTree);
+                        extensionTree->addChild(new QTreeWidgetItem(QStringList()<<"Type: " + subType));
+                        extensionTree->addChild(new QTreeWidgetItem(QStringList()<<"Length: " + QString::number(exLength)));
+                        extensionTree->addChild(new QTreeWidgetItem(QStringList()<<"EC point formats Length: " + QString::number(ecLength)));
+                        QTreeWidgetItem* EXTree = new QTreeWidgetItem(QStringList()<<"Elliptic curves point formats (" + QString::number(ecLength) + ")");
+                        extensionTree->addChild(EXTree);
+                        for(int g = 0;g < ecLength;g++){
+                            QString temp = pkt_tls->getTlsHandshakeExtensionECPointFormat(EC[g]);
+                            EXTree->addChild(new QTreeWidgetItem(QStringList()<<temp));
+                        }
+                        break;
+                    }
+                    case 10:{// supported_groups
+                        ushort groupListLength = 0;
+                        QVector<ushort>group;
+                        pkt_tls->getTlsExtensionSupportGroups(exOffset,exType,exLength,groupListLength,group);
+                        QString subType = pkt_tls->getTlsHandshakeExtension(exType);
+                        QTreeWidgetItem*extensionTree = new QTreeWidgetItem(QStringList()<<"Extension: " + subType + " (len=" + QString::number(exLength) + ")");
+                        handshakeTree->addChild(extensionTree);
+                        extensionTree->addChild(new QTreeWidgetItem(QStringList()<<"Type: " + subType));
+                        extensionTree->addChild(new QTreeWidgetItem(QStringList()<<"Length: " + QString::number(exLength)));
+                        extensionTree->addChild(new QTreeWidgetItem(QStringList()<<"Supported Groups List Length: " + QString::number(groupListLength)));
+                        QTreeWidgetItem* sptTree = new QTreeWidgetItem(QStringList()<<"Supported Groups (" + QString::number(groupListLength/2) + " groups)");
+                        extensionTree->addChild(sptTree);
+                        for(int g = 0;g < groupListLength/2;g++){
+                            QString temp = pkt_tls->getTlsHandshakeExtensionSupportGroup(group[g]);
+                            sptTree->addChild(new QTreeWidgetItem(QStringList()<<"Supported Group: " + temp));
+                        }
+                        break;
+                    }
+                    case 35:{// session_ticket
+                        pkt_tls->getTlsExtensionSessionTicket(exOffset,exType,exLength);
+                        QString subType = pkt_tls->getTlsHandshakeExtension(exType);
+                        QTreeWidgetItem*extensionTree = new QTreeWidgetItem(QStringList()<<"Extension: " + subType + " (len=" + QString::number(exLength) + ")");
+                        handshakeTree->addChild(extensionTree);
+                        extensionTree->addChild(new QTreeWidgetItem(QStringList()<<"Type: " + subType));
+                        extensionTree->addChild(new QTreeWidgetItem(QStringList()<<"Length: " + QString::number(exLength)));
+                        break;
+                    }
+                    case 22:{// encrypt_then_mac
+                        pkt_tls->getTlsExtensionEncryptThenMac(exOffset,exType,exLength);
+                        QString subType = pkt_tls->getTlsHandshakeExtension(exType);
+                        QTreeWidgetItem*extensionTree = new QTreeWidgetItem(QStringList()<<"Extension: " + subType + " (len=" + QString::number(exLength) + ")");
+                        handshakeTree->addChild(extensionTree);
+                        extensionTree->addChild(new QTreeWidgetItem(QStringList()<<"Type: " + subType));
+                        extensionTree->addChild(new QTreeWidgetItem(QStringList()<<"Length: " + QString::number(exLength)));
+                        break;
+                    }
+                    case 23:{// extended_master_secret
+                        pkt_tls->getTlsExtensionExtendMasterSecret(exOffset,exType,exLength);
+                        QString subType = pkt_tls->getTlsHandshakeExtension(exType);
+                        QTreeWidgetItem*extensionTree = new QTreeWidgetItem(QStringList()<<"Extension: " + subType + " (len=" + QString::number(exLength) + ")");
+                        handshakeTree->addChild(extensionTree);
+                        extensionTree->addChild(new QTreeWidgetItem(QStringList()<<"Type: " + subType));
+                        extensionTree->addChild(new QTreeWidgetItem(QStringList()<<"Length: " + QString::number(exLength)));
+                        break;
+                    }
+                    case 13:{// signature_algorithms
+                        ushort algorithmLength = 0;
+                        QVector<ushort>algorithm;
+                        pkt_tls->getTlsExtensionSignatureAlgorithms(exOffset,exType,exLength,algorithmLength,algorithm);
+                        QString subType = pkt_tls->getTlsHandshakeExtension(exType);
+                        QTreeWidgetItem*extensionTree = new QTreeWidgetItem(QStringList()<<"Extension: " + subType + " (len=" + QString::number(exLength) + ")");
+                        handshakeTree->addChild(extensionTree);
+                        extensionTree->addChild(new QTreeWidgetItem(QStringList()<<"Type: " + subType));
+                        extensionTree->addChild(new QTreeWidgetItem(QStringList()<<"Length: " + QString::number(exLength)));
+                        extensionTree->addChild(new QTreeWidgetItem(QStringList()<<"Signature Hash Algorithms Length: " + QString::number(algorithmLength)));
+                        QTreeWidgetItem* sigTree = new QTreeWidgetItem(QStringList()<<"Signature Hash Algorithms (" + QString::number(algorithmLength/2) + " algorithms)");
+                        extensionTree->addChild(sigTree);
+                        for(int g = 0;g < algorithmLength/2;g++){
+                            QTreeWidgetItem*subTree = new QTreeWidgetItem(QStringList()<<"Signature Algorithm: 0x0" + QString::number(algorithm[g],16));
+                            sigTree->addChild(subTree);
+                            QString hash = pkt_tls->getTlsHadshakeExtensionHash((algorithm[g] & 0xff00) >> 8);
+                            QString sig = pkt_tls->getTlsHadshakeExtensionSignature((algorithm[g] & 0x00ff));
+                            subTree->addChild(new QTreeWidgetItem(QStringList()<<"Signature Hash Algorithm Hash: " + hash + " (" + QString::number((algorithm[g] & 0xff00) >> 8) + ")"));
+                            subTree->addChild(new QTreeWidgetItem(QStringList()<<"Signature Hash Algorithm Signature: " + sig + " (" + QString::number(algorithm[g] & 0x00ff) + ")"));
+                        }
+                        break;
+                    }
+                    case 43:{// supported_versions
+                        u_char supportLength = 0;
+                        QVector<ushort>supportVersion;
+                        pkt_tls->getTlsExtensionSupportVersions(exOffset,exType,exLength,supportLength,supportVersion);
+                        QString subType = pkt_tls->getTlsHandshakeExtension(exType);
+                        QTreeWidgetItem*extensionTree = new QTreeWidgetItem(QStringList()<<"Extension: " + subType + " (len=" + QString::number(exLength) + ")");
+                        handshakeTree->addChild(extensionTree);
+                        extensionTree->addChild(new QTreeWidgetItem(QStringList()<<"Type: " + subType));
+                        extensionTree->addChild(new QTreeWidgetItem(QStringList()<<"Length: " + QString::number(exLength)));
+                        extensionTree->addChild(new QTreeWidgetItem(QStringList()<<"Supported Versions length: " + QString::number(supportLength)));
+                        for(int g = 0;g < supportLength/2;g++){
+                            QString temp = pkt_tls->getTlsVersion(supportVersion[g]);
+                            extensionTree->addChild(new QTreeWidgetItem(QStringList()<<"Supported Version: " + temp));
+                        }
+                        break;
+                    }
+                    case 51:{// key_share
+                        ushort shareLength = 0;
+                        ushort group = 0;
+                        ushort exchangeLength = 0;
+                        QString exchange = "";
+                        pkt_tls->getTlsExtensionKeyShare(exOffset,exType,exLength,shareLength,group,exchangeLength,exchange);
+                        QString subType = pkt_tls->getTlsHandshakeExtension(exType);
+                        QTreeWidgetItem*extensionTree = new QTreeWidgetItem(QStringList()<<"Extension: " + subType + " (len=" + QString::number(exLength) + ")");
+                        handshakeTree->addChild(extensionTree);
+                        extensionTree->addChild(new QTreeWidgetItem(QStringList()<<"Type: " + subType));
+                        extensionTree->addChild(new QTreeWidgetItem(QStringList()<<"Length: " + QString::number(exLength)));
+
+                        QTreeWidgetItem*subTree = new QTreeWidgetItem(QStringList()<<"Key Share extension");
+                        extensionTree->addChild(subTree);
+                        subTree->addChild(new QTreeWidgetItem(QStringList()<<"Client Key Share Length: " + QString::number(shareLength)));
+                        QTreeWidgetItem* entryTree = new QTreeWidgetItem(QStringList()<<"Key Share Entry: Group ");
+                        subTree->addChild(entryTree);
+                        entryTree->addChild(new QTreeWidgetItem(QStringList()<<"Group: " + QString::number(group)));
+                        entryTree->addChild(new QTreeWidgetItem(QStringList()<<"Key Exchange Length: " + QString::number(exchangeLength)));
+                        entryTree->addChild(new QTreeWidgetItem(QStringList()<<"Key Exchange: " + exchange));
+                        break;
+                    }
+                    case 21:{// padding
+                        QString rdata = "";
+                        pkt_tls->getTlsExtensionPadding(exOffset,exType,exLength,rdata);
+                        QString subType = pkt_tls->getTlsHandshakeExtension(exType);
+                        QTreeWidgetItem*extensionTree = new QTreeWidgetItem(QStringList()<<"Extension: " + subType + " (len=" + QString::number(exLength) + ")");
+                        handshakeTree->addChild(extensionTree);
+                        extensionTree->addChild(new QTreeWidgetItem(QStringList()<<"Type: " + subType + " (21)"));
+                        extensionTree->addChild(new QTreeWidgetItem(QStringList()<<"Length: " + QString::number(exLength)));
+                        extensionTree->addChild(new QTreeWidgetItem(QStringList()<<"Padding Data: " + rdata));
+                        break;
+                    }
+                    default:{
+                        QString rdata = "";
+                        pkt_tls->getTlsExtensionOther(exOffset,exType,exLength,rdata);
+                        QString subType = pkt_tls->getTlsHandshakeExtension(exType);
+                        QTreeWidgetItem*extensionTree = new QTreeWidgetItem(QStringList()<<"Extension: " + subType + " (len=" + QString::number(exLength) + ")");
+                        handshakeTree->addChild(extensionTree);
+                        extensionTree->addChild(new QTreeWidgetItem(QStringList()<<"Type: " + subType + " (" + QString::number(exType) + ")"));
+                        extensionTree->addChild(new QTreeWidgetItem(QStringList()<<"Length: " + QString::number(exLength)));
+                        extensionTree->addChild(new QTreeWidgetItem(QStringList()<<"Data: " + rdata));
+
+                        break;
+                    }
+                    }
+                    k += (exLength + 4);
+                    exOffset += (exLength + 4);
+                }
+            }
+        }
+        else if(handshakeType == 2){// Server hello
+            int tlsLength = 0;
+            ushort rawVersion = 0;
+            QString random = "";
+            u_char sessionLength = 0;
+            QString sessionId = "";
+            ushort cipher = 0;
+            u_char compressionMethod = 0;
+            ushort extensionLength = 0;
+            pkt_tls->getTlsServerHelloInfo((rawLength * 4 + 5),handshakeType,tlsLength,rawVersion,random,sessionLength,sessionId,cipher,compressionMethod,extensionLength);
+            QString type = pkt_tls->getTlsHandshakeType(handshakeType);
+            QString tlsVersion = pkt_tls->getTlsVersion(rawVersion);
+
+            QTreeWidgetItem* tlsSubTree = new QTreeWidgetItem(QStringList()<<vs + " Record Layer: " + type + " Protocol: " + type);
+            tlsTree->addChild(tlsSubTree);
+            tlsSubTree->addChild(new QTreeWidgetItem(QStringList()<<"Content Type: " + type + " (" + QString::number(contentType) + ")"));
+            tlsSubTree->addChild(new QTreeWidgetItem(QStringList()<<"Version: " + vs + " (0x0" + QString::number(version,16) + ")"));
+            tlsSubTree->addChild(new QTreeWidgetItem(QStringList()<<"Length " + QString::number(length)));
+
+            QTreeWidgetItem* handshakeTree = new QTreeWidgetItem(QStringList()<<"Handshake Protocol: " + type);
+            tlsSubTree->addChild(handshakeTree);
+            handshakeTree->addChild(new QTreeWidgetItem(QStringList()<<"Handshake Type: " + type + "(" + QString::number(handshakeType) + ")"));
+            handshakeTree->addChild(new QTreeWidgetItem(QStringList()<<"Length: " + QString::number(tlsLength)));
+
+            handshakeTree->addChild(new QTreeWidgetItem(QStringList()<<"Version: " + tlsVersion + " (0x0" + QString::number(rawVersion,16) + ")"));
+            handshakeTree->addChild(new QTreeWidgetItem(QStringList()<<"Random: " + random));
+            handshakeTree->addChild(new QTreeWidgetItem(QStringList()<<"Session ID Length: " + QString::number(sessionLength)));
+            if(sessionLength > 0){
+                handshakeTree->addChild(new QTreeWidgetItem(QStringList()<<"Session ID: " + sessionId));
+            }
+            QString temp = pkt_tls->getTlsHandshakeCipherSuites(cipher);
+            handshakeTree->addChild(new QTreeWidgetItem(QStringList()<<"Cipher Suites: " +temp));
+            temp = pkt_tls->getTlsHandshakeCompression(compressionMethod);
+            handshakeTree->addChild(new QTreeWidgetItem(QStringList()<<"Compression Methods: " + temp + " (" + QString::number(compressionMethod) + ")"));
+            handshakeTree->addChild(new QTreeWidgetItem(QStringList()<<"Extensions Length: " + QString::number(extensionLength)));
+            if(extensionLength > 0){
+                int exOffset = (rawLength * 4) + (tlsLength - extensionLength + 5 + 4);
+                for(int k = 0;k < extensionLength;){
+                    int code = pkt_tls->getTlsExtensionType(exOffset);
+                    ushort exType = 0;
+                    ushort exLength = 0;
+                    switch (code) {
+                    case 0:{ // server_name
+                        ushort listLength = 0;
+                        u_char nameType = 0;
+                        ushort nameLength = 0;
+                        QString name = "";
+                        pkt_tls->getTlsExtensionServerName(exOffset,exType,exLength,listLength,nameType,nameLength,name);
+                        QString subType = pkt_tls->getTlsHandshakeExtension(exType);
+                        QTreeWidgetItem*extensionTree = new QTreeWidgetItem(QStringList()<<"Extension: " + subType + " (len=" + QString::number(exLength) + ")");
+                        handshakeTree->addChild(extensionTree);
+                        extensionTree->addChild(new QTreeWidgetItem(QStringList()<<"Type: " + subType));
+                        extensionTree->addChild(new QTreeWidgetItem(QStringList()<<"Length: " + QString::number(exLength)));
+                        if(exLength > 0 && listLength > 0){
+                            QTreeWidgetItem*serverTree = new QTreeWidgetItem(QStringList()<<"Server Name Indication extension");
+                            extensionTree->addChild(serverTree);
+                            serverTree->addChild(new QTreeWidgetItem(QStringList()<<"Server Name list length: " + QString::number(listLength)));
+                            serverTree->addChild(new QTreeWidgetItem(QStringList()<<"Server Name Type: " + QString::number(nameType)));
+                            serverTree->addChild(new QTreeWidgetItem(QStringList()<<"Server Name length: " + QString::number(nameLength)));
+                            serverTree->addChild(new QTreeWidgetItem(QStringList()<<"Server Name: " + name));
+                        }
+                        break;
+                    }
+                    case 11:{// ec_point_format
+                        u_char ecLength = 0;
+                        QVector<u_char>EC;
+                        pkt_tls->getTlsExtensionEcPointFormats(exOffset,exType,exLength,ecLength,EC);
+                        QString subType = pkt_tls->getTlsHandshakeExtension(exType);
+                        QTreeWidgetItem*extensionTree = new QTreeWidgetItem(QStringList()<<"Extension: " + subType + " (len=" + QString::number(exLength) + ")");
+                        handshakeTree->addChild(extensionTree);
+                        extensionTree->addChild(new QTreeWidgetItem(QStringList()<<"Type: " + subType));
+                        extensionTree->addChild(new QTreeWidgetItem(QStringList()<<"Length: " + QString::number(exLength)));
+                        extensionTree->addChild(new QTreeWidgetItem(QStringList()<<"EC point formats Length: " + QString::number(ecLength)));
+                        QTreeWidgetItem* EXTree = new QTreeWidgetItem(QStringList()<<"Elliptic curves point formats (" + QString::number(ecLength) + ")");
+                        extensionTree->addChild(EXTree);
+                        for(int g = 0;g < ecLength;g++){
+                            QString temp = pkt_tls->getTlsHandshakeExtensionECPointFormat(EC[g]);
+                            EXTree->addChild(new QTreeWidgetItem(QStringList()<<temp));
+                        }
+                        break;
+                    }
+                    case 10:{// supported_groups
+                        ushort groupListLength = 0;
+                        QVector<ushort>group;
+                        pkt_tls->getTlsExtensionSupportGroups(exOffset,exType,exLength,groupListLength,group);
+                        QString subType = pkt_tls->getTlsHandshakeExtension(exType);
+                        QTreeWidgetItem*extensionTree = new QTreeWidgetItem(QStringList()<<"Extension: " + subType + " (len=" + QString::number(exLength) + ")");
+                        handshakeTree->addChild(extensionTree);
+                        extensionTree->addChild(new QTreeWidgetItem(QStringList()<<"Type: " + subType));
+                        extensionTree->addChild(new QTreeWidgetItem(QStringList()<<"Length: " + QString::number(exLength)));
+                        extensionTree->addChild(new QTreeWidgetItem(QStringList()<<"Supported Groups List Length: " + QString::number(groupListLength)));
+                        QTreeWidgetItem* sptTree = new QTreeWidgetItem(QStringList()<<"Supported Groups (" + QString::number(groupListLength/2) + " groups)");
+                        extensionTree->addChild(sptTree);
+                        for(int g = 0;g < groupListLength/2;g++){
+                            QString temp = pkt_tls->getTlsHandshakeExtensionSupportGroup(group[g]);
+                            sptTree->addChild(new QTreeWidgetItem(QStringList()<<"Supported Group: " + temp));
+                        }
+                        break;
+                    }
+                    case 35:{// session_ticket
+                        pkt_tls->getTlsExtensionSessionTicket(exOffset,exType,exLength);
+                        QString subType = pkt_tls->getTlsHandshakeExtension(exType);
+                        QTreeWidgetItem*extensionTree = new QTreeWidgetItem(QStringList()<<"Extension: " + subType + " (len=" + QString::number(exLength) + ")");
+                        handshakeTree->addChild(extensionTree);
+                        extensionTree->addChild(new QTreeWidgetItem(QStringList()<<"Type: " + subType));
+                        extensionTree->addChild(new QTreeWidgetItem(QStringList()<<"Length: " + QString::number(exLength)));
+                        break;
+                    }
+                    case 22:{// encrypt_then_mac
+                        pkt_tls->getTlsExtensionEncryptThenMac(exOffset,exType,exLength);
+                        QString subType = pkt_tls->getTlsHandshakeExtension(exType);
+                        QTreeWidgetItem*extensionTree = new QTreeWidgetItem(QStringList()<<"Extension: " + subType + " (len=" + QString::number(exLength) + ")");
+                        handshakeTree->addChild(extensionTree);
+                        extensionTree->addChild(new QTreeWidgetItem(QStringList()<<"Type: " + subType));
+                        extensionTree->addChild(new QTreeWidgetItem(QStringList()<<"Length: " + QString::number(exLength)));
+                        break;
+                    }
+                    case 23:{// extended_master_secret
+                        pkt_tls->getTlsExtensionExtendMasterSecret(exOffset,exType,exLength);
+                        QString subType = pkt_tls->getTlsHandshakeExtension(exType);
+                        QTreeWidgetItem*extensionTree = new QTreeWidgetItem(QStringList()<<"Extension: " + subType + " (len=" + QString::number(exLength) + ")");
+                        handshakeTree->addChild(extensionTree);
+                        extensionTree->addChild(new QTreeWidgetItem(QStringList()<<"Type: " + subType));
+                        extensionTree->addChild(new QTreeWidgetItem(QStringList()<<"Length: " + QString::number(exLength)));
+                        break;
+                    }
+                    case 13:{// signature_algorithms
+                        ushort algorithmLength = 0;
+                        QVector<ushort>algorithm;
+                        pkt_tls->getTlsExtensionSignatureAlgorithms(exOffset,exType,exLength,algorithmLength,algorithm);
+                        QString subType = pkt_tls->getTlsHandshakeExtension(exType);
+                        QTreeWidgetItem*extensionTree = new QTreeWidgetItem(QStringList()<<"Extension: " + subType + " (len=" + QString::number(exLength) + ")");
+                        handshakeTree->addChild(extensionTree);
+                        extensionTree->addChild(new QTreeWidgetItem(QStringList()<<"Type: " + subType));
+                        extensionTree->addChild(new QTreeWidgetItem(QStringList()<<"Length: " + QString::number(exLength)));
+                        extensionTree->addChild(new QTreeWidgetItem(QStringList()<<"Signature Hash Algorithms Length: " + QString::number(algorithmLength)));
+                        QTreeWidgetItem* sigTree = new QTreeWidgetItem(QStringList()<<"Signature Hash Algorithms (" + QString::number(algorithmLength/2) + " algorithms)");
+                        extensionTree->addChild(sigTree);
+                        for(int g = 0;g < algorithmLength/2;g++){
+                            QTreeWidgetItem*subTree = new QTreeWidgetItem(QStringList()<<"Signature Algorithm: 0x0" + QString::number(algorithm[g],16));
+                            sigTree->addChild(subTree);
+                            QString hash = pkt_tls->getTlsHadshakeExtensionHash((algorithm[g] & 0xff00) >> 8);
+                            QString sig = pkt_tls->getTlsHadshakeExtensionSignature((algorithm[g] & 0x00ff));
+                            subTree->addChild(new QTreeWidgetItem(QStringList()<<"Signature Hash Algorithm Hash: " + hash + " (" + QString::number((algorithm[g] & 0xff00) >> 8) + ")"));
+                            subTree->addChild(new QTreeWidgetItem(QStringList()<<"Signature Hash Algorithm Signature: " + sig + " (" + QString::number(algorithm[g] & 0x00ff) + ")"));
+                        }
+                        break;
+                    }
+                    case 43:{// supported_versions
+                        u_char supportLength = 0;
+                        QVector<ushort>supportVersion;
+                        pkt_tls->getTlsExtensionSupportVersions(exOffset,exType,exLength,supportLength,supportVersion);
+                        QString subType = pkt_tls->getTlsHandshakeExtension(exType);
+                        QTreeWidgetItem*extensionTree = new QTreeWidgetItem(QStringList()<<"Extension: " + subType + " (len=" + QString::number(exLength) + ")");
+                        handshakeTree->addChild(extensionTree);
+                        extensionTree->addChild(new QTreeWidgetItem(QStringList()<<"Type: " + subType));
+                        extensionTree->addChild(new QTreeWidgetItem(QStringList()<<"Length: " + QString::number(exLength)));
+                        extensionTree->addChild(new QTreeWidgetItem(QStringList()<<"Supported Versions length: " + QString::number(supportLength)));
+                        for(int g = 0;g < supportLength/2;g++){
+                            QString temp = pkt_tls->getTlsVersion(supportVersion[g]);
+                            extensionTree->addChild(new QTreeWidgetItem(QStringList()<<"Supported Version: " + temp));
+                        }
+                        break;
+                    }
+                    case 51:{// key_share
+                        ushort shareLength = 0;
+                        ushort group = 0;
+                        ushort exchangeLength = 0;
+                        QString exchange = "";
+                        pkt_tls->getTlsExtensionKeyShare(exOffset,exType,exLength,shareLength,group,exchangeLength,exchange);
+                        QString subType = pkt_tls->getTlsHandshakeExtension(exType);
+                        QTreeWidgetItem*extensionTree = new QTreeWidgetItem(QStringList()<<"Extension: " + subType + " (len=" + QString::number(exLength) + ")");
+                        handshakeTree->addChild(extensionTree);
+                        extensionTree->addChild(new QTreeWidgetItem(QStringList()<<"Type: " + subType));
+                        extensionTree->addChild(new QTreeWidgetItem(QStringList()<<"Length: " + QString::number(exLength)));
+
+                        QTreeWidgetItem*subTree = new QTreeWidgetItem(QStringList()<<"Key Share extension");
+                        extensionTree->addChild(subTree);
+                        subTree->addChild(new QTreeWidgetItem(QStringList()<<"Client Key Share Length: " + QString::number(shareLength)));
+                        QTreeWidgetItem* entryTree = new QTreeWidgetItem(QStringList()<<"Key Share Entry: Group ");
+                        subTree->addChild(entryTree);
+                        entryTree->addChild(new QTreeWidgetItem(QStringList()<<"Group: " + QString::number(group)));
+                        entryTree->addChild(new QTreeWidgetItem(QStringList()<<"Key Exchange Length: " + QString::number(exchangeLength)));
+                        entryTree->addChild(new QTreeWidgetItem(QStringList()<<"Key Exchange: " + exchange));
+                        break;
+                    }
+                    case 21:{// padding
+                        QString rdata = "";
+                        pkt_tls->getTlsExtensionPadding(exOffset,exType,exLength,rdata);
+                        QString subType = pkt_tls->getTlsHandshakeExtension(exType);
+                        QTreeWidgetItem*extensionTree = new QTreeWidgetItem(QStringList()<<"Extension: " + subType + " (len=" + QString::number(exLength) + ")");
+                        handshakeTree->addChild(extensionTree);
+                        extensionTree->addChild(new QTreeWidgetItem(QStringList()<<"Type: " + subType + " (21)"));
+                        extensionTree->addChild(new QTreeWidgetItem(QStringList()<<"Length: " + QString::number(exLength)));
+                        extensionTree->addChild(new QTreeWidgetItem(QStringList()<<"Padding Data: " + rdata));
+                        break;
+                    }
+                    default:{
+                        QString rdata = "";
+                        pkt_tls->getTlsExtensionOther(exOffset,exType,exLength,rdata);
+                        QString subType = pkt_tls->getTlsHandshakeExtension(exType);
+                        QTreeWidgetItem*extensionTree = new QTreeWidgetItem(QStringList()<<"Extension: " + subType + " (len=" + QString::number(exLength) + ")");
+                        handshakeTree->addChild(extensionTree);
+                        extensionTree->addChild(new QTreeWidgetItem(QStringList()<<"Type: " + subType + " (" + QString::number(exType) + ")"));
+                        extensionTree->addChild(new QTreeWidgetItem(QStringList()<<"Length: " + QString::number(exLength)));
+                        extensionTree->addChild(new QTreeWidgetItem(QStringList()<<"Data: " + rdata));
+
+                        break;
+                    }
+                    }
+                    k += (exLength + 4);
+                    exOffset += (exLength + 4);
+                }
+            }
+
+        }
+        else if(handshakeType == 12){// Server Key Exchange
+            int tlsLength = 0;
+            u_char curveType = 0;
+            ushort curveName = 0;
+            u_char pubLength = 0;
+            QString pubKey = "";
+            ushort sigAlgorithm = 0;
+            ushort sigLength = 0;
+            QString sig = "";
+            pkt_tls->getTlsServerKeyExchange((rawLength * 4 + 5),handshakeType,tlsLength,curveType,curveName,pubLength,pubKey,sigAlgorithm,sigLength,sig);
+            QString type = pkt_tls->getTlsHandshakeType(handshakeType);
+
+            QTreeWidgetItem* tlsSubTree = new QTreeWidgetItem(QStringList()<<vs + " Record Layer: " + type + " Protocol: " + type);
+            tlsTree->addChild(tlsSubTree);
+            tlsSubTree->addChild(new QTreeWidgetItem(QStringList()<<"Content Type: " + type + " (" + QString::number(contentType) + ")"));
+            tlsSubTree->addChild(new QTreeWidgetItem(QStringList()<<"Version: " + vs + " (0x0" + QString::number(version,16) + ")"));
+            tlsSubTree->addChild(new QTreeWidgetItem(QStringList()<<"Length " + QString::number(length)));
+
+            QTreeWidgetItem* handshakeTree = new QTreeWidgetItem(QStringList()<<"Handshake Protocol: " + type);
+            tlsSubTree->addChild(handshakeTree);
+            handshakeTree->addChild(new QTreeWidgetItem(QStringList()<<"Handshake Type: " + type + "(" + QString::number(handshakeType) + ")"));
+            handshakeTree->addChild(new QTreeWidgetItem(QStringList()<<"Length: " + QString::number(tlsLength)));
+
+        }
+        // ... TODO
+        break;
+    }
+    case 23:{
+        QTreeWidgetItem* tlsSubree = new QTreeWidgetItem(QStringList()<<vs + " Record Layer: " + type + " Protocol: http-over-tls");
+        tlsTree->addChild(tlsSubree);
+        tlsSubree->addChild(new QTreeWidgetItem(QStringList()<<"Content Type: " + type + " (" + QString::number(contentType) + ")"));
+        tlsSubree->addChild(new QTreeWidgetItem(QStringList()<<"Version: " + vs + " (0x0" + QString::number(version,16) + ")"));
+        tlsSubree->addChild(new QTreeWidgetItem(QStringList()<<"Length " + QString::number(length)));
+        tlsSubree->addChild(new QTreeWidgetItem(QStringList()<<"Encrypted Application Data: ..."));
+        break;
+    }
+    default:break;
+    }
+}
+
+void MainWindow::SSL_analysis()
+{
+    QTreeWidgetItem* item = new QTreeWidgetItem(QStringList()<<"Secure Socket Layer");
+    ui->treeWidget->addTopLevelItem(item);
+    item->addChild(new QTreeWidgetItem(QStringList()<<" "));
 }
 
 

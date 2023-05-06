@@ -248,7 +248,7 @@ int Capture::tcpPackageHandle(const uchar *pkt_content,QString &info,int ipPacka
         ssl = (uchar*)(pkt_content + 14 + 20 + delta);
         uchar isTls = *(ssl);
         ssl++;
-        ushort*pointer = (ushort*)(ssl);
+        ushort* pointer = (ushort*)(ssl);
         ushort version = ntohs(*pointer);
         if(isTls >= 20 && isTls <= 23 && version >= 0x0301 && version <= 0x0304){
             type = 6;
